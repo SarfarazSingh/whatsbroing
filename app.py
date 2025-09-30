@@ -1,17 +1,15 @@
 """
-app.py — What's BROing (Refined, classy, minimalistic design with Google Sheets)
+app.py — What's BROing (Streamlit Cloud Compatible with Secrets)
 
-Run web app:
+Run web app locally:
     pip install streamlit gspread google-auth
     streamlit run app.py
 
+Deploy to Streamlit Cloud:
+    Add secrets in Streamlit Cloud dashboard under Settings > Secrets
+
 Run tests only:
     python app.py --test
-
-Notes:
-- Fully live countdown using a Streamlit placeholder + 1s loop (no deprecated APIs).
-- Writes signups to Google Sheets instead of local CSV files.
-- Refined with classy, minimalistic design principles.
 """
 
 from __future__ import annotations
@@ -54,12 +52,19 @@ MADRID_TZ = ZoneInfo("Europe/Madrid") if ZoneInfo else None
 # Fixed public launch date/time (Madrid time)
 LAUNCH_TIME = datetime(2025, 11, 1, 12, 0, 0, tzinfo=MADRID_TZ)
 
-# ---- Google Sheets credentials (hardcoded from your JSON) ----
-SERVICE_ACCOUNT_INFO = {
-    "type": "service_account",
-    "project_id": "whatsbroing",
-    "private_key_id": "815e63ba2326c79fa0767ca6477da80a405bf131",
-    "private_key": """-----BEGIN PRIVATE KEY-----
+# ---- Load credentials from Streamlit secrets or fallback to hardcoded ----
+def get_credentials():
+    """Get Google Sheets credentials from Streamlit secrets or fallback"""
+    if STREAMLIT_AVAILABLE and hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+        # Running on Streamlit Cloud with secrets
+        return dict(st.secrets["gcp_service_account"]), st.secrets.get("spreadsheet_id", "")
+    else:
+        # Local development fallback
+        SERVICE_ACCOUNT_INFO = {
+            "type": "service_account",
+            "project_id": "whatsbroing",
+            "private_key_id": "815e63ba2326c79fa0767ca6477da80a405bf131",
+            "private_key": """-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQClRfzSVSIAL5bS
 M8HZsDlunkIAX5ZvO+rkf8drNIJ/vkVkuRCDphGXccMEcHG9b2FFpi0nkxM/kU40
 S5zUHeCaChD2qPI7+Ut0wMZLXUDmTnRjc7w+5m7FifnNZd3HitofMuQcaUSWvuAO
@@ -87,15 +92,17 @@ NZv925LtEplgq6FTZnxQbRsDUknCx1zJZ1DTzpRzyzcPfMpNMbPVwmn/bTZU5g5s
 GAOdGC9LNDH5zTjriiIDaaX6tDjWueQi9r0gJ7T5tGL1NFSgYp9uXDNTx8Wcb5RF
 09WLeGmqvwtyph/NgHxX8Z1N
 -----END PRIVATE KEY-----""",
-    "client_email": "service-account@whatsbroing.iam.gserviceaccount.com",
-    "client_id": "104345141303948518924",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account%40whatsbroing.iam.gserviceaccount.com",
-}
+            "client_email": "service-account@whatsbroing.iam.gserviceaccount.com",
+            "client_id": "104345141303948518924",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account%40whatsbroing.iam.gserviceaccount.com",
+        }
+        SPREADSHEET_ID = "1mHpPfmV7AqDAs-UsYwHgl9pggBenCRpEfaPiM_-22Ws"
+        return SERVICE_ACCOUNT_INFO, SPREADSHEET_ID
 
-SPREADSHEET_ID = "1mHpPfmV7AqDAs-UsYwHgl9pggBenCRpEfaPiM_-22Ws"  # Your Google Sheet ID
+SERVICE_ACCOUNT_INFO, SPREADSHEET_ID = get_credentials()
 
 # --------------------------------------------------------------------------------------
 # Core logic (UI-independent)
