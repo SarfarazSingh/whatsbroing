@@ -1,7 +1,8 @@
-# app.py — What's BROing (Refined, classy, minimalistic design)
 """
+app.py — What's BROing (Refined, classy, minimalistic design with Google Sheets)
+
 Run web app:
-    pip install streamlit
+    pip install streamlit gspread google-auth
     streamlit run app.py
 
 Run tests only:
@@ -9,8 +10,7 @@ Run tests only:
 
 Notes:
 - Fully live countdown using a Streamlit placeholder + 1s loop (no deprecated APIs).
-- No Streamlit secrets used; logo only via sidebar upload.
-- Writes signups to local CSV files (signups.csv, crew_interest.csv).
+- Writes signups to Google Sheets instead of local CSV files.
 - Refined with classy, minimalistic design principles.
 """
 
@@ -38,6 +38,14 @@ try:
 except Exception:  # pragma: no cover
     ZoneInfo = None  # type: ignore
 
+# ---- Google Sheets imports ----
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSHEETS_AVAILABLE = True
+except ModuleNotFoundError:
+    GSHEETS_AVAILABLE = False
+
 # --------------------------------------------------------------------------------------
 # Configuration
 # --------------------------------------------------------------------------------------
@@ -45,6 +53,49 @@ APP_NAME = "What's BROing — CoffeeConnect Madrid"
 MADRID_TZ = ZoneInfo("Europe/Madrid") if ZoneInfo else None
 # Fixed public launch date/time (Madrid time)
 LAUNCH_TIME = datetime(2025, 11, 1, 12, 0, 0, tzinfo=MADRID_TZ)
+
+# ---- Google Sheets credentials (hardcoded from your JSON) ----
+SERVICE_ACCOUNT_INFO = {
+    "type": "service_account",
+    "project_id": "whatsbroing",
+    "private_key_id": "815e63ba2326c79fa0767ca6477da80a405bf131",
+    "private_key": """-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQClRfzSVSIAL5bS
+M8HZsDlunkIAX5ZvO+rkf8drNIJ/vkVkuRCDphGXccMEcHG9b2FFpi0nkxM/kU40
+S5zUHeCaChD2qPI7+Ut0wMZLXUDmTnRjc7w+5m7FifnNZd3HitofMuQcaUSWvuAO
+01RaLcz9V24g1LvpEFSRUpdToxpW0nxKEWdyVThfmeZYXNhoa+qt+4x5K+xpV0Py
+tyNaUEBPVAimjt1OKp4xNe82t0rXD8kijaXzQ96WPgFZjm3pWo0L+hHvqnVe3fMR
+JFHLR+C1CKWjmK+nbS6ER6OyW/JSNY+iBjxJFgmwRuBO6lYO+RzTto/neoieCOY7
+/3kMOscdAgMBAAECggEADF/MmZzpJ6ATMpglyUbh+JpzG58MiYswFOf3m4W6HZa2
+kF+GJoKJFPszXEI6VId3KM/+gn+HCek3Cer9X35V14KtxCILHPAXNQh38E2XndwS
+58f9uKySb5+F1gSXUdOKGEWRrF+PVJq5oN00FsUQxjPFGZfZR+PCnoIotV45YHWm
+tIa9AIg08itV7Yf9RV5R/BqV/t/hzLKBAlz3hAiM813cXjTwSzDlqsppoebQHhMO
+lRPvpYpQdJkgKFebRQNKPg+j/b8W3UaObfH9V37X8QJm1v1LH/85m8hYihc5MTkc
+/ITcYdbJmzgSknpj6WGBqcI2knXuxloOKPxVVI7y8QKBgQDifASbDfWimtiPUt0W
+Po0nNxtfi1vAtid2IJCDz6KwfU7GTfrfGZYamAcQZWivLYHGQJAb2u5CPBYb6hIO
+dVpWP5EmszZRxZsxrcK5qvLt9/O8l+SLZsh8UpjwGxf8LAdLzbWp05GFLYPXJed9
+fpheDPZLtoC9ymesWcawLFMw9QKBgQC6z9gcnCtV9bZ5b5qnofuqdeF3Rrz/PsHo
+9RTUg4ke0eHvYU0J8jCYK6S9ba2zEUFRmEUrNDAMCjcXUFEL+LKTySNGabEAMr8j
+96Zk8jpjHcp6LUlxkK7oWS3atLYtewFgljHCy3iZYRn7nDWLrtDg1LjkkW7fJnh6
+osfkzRLEiQKBgQC3WxHbecywDM5gEgS9GnzqD5oQmuD4Pj/qSWjV3YZnfbsFnmII
+tk0oUIX/hyneEGhs2R4R/wc/BigcBz8BB47QHnxjqVjDkMgYywTHjZdIgqGHwCyd
+kuOiirgYQscDN53ch7iXuZmpCPUgfCZSGeg+1B2dpC3L+Q4/oRrSy7+59QKBgBBI
+6AzubDStG8AQQ4oTa83bQtFUAEu728mD+9HeuYhPQYPNlpqkWyoYu96rffXbLjd/
+r5/ph7q09UJ6BOanQmHxqbqMohpjUhg/kWjBWOelBC6MXhehRi4JAB9Nm4fxbhhO
+X34coKG2Pj6Zym0nyxueT5PVPbYEM4J1SDmgyt8JAoGBAMsFQwllB54IU9sY+z91
+NZv925LtEplgq6FTZnxQbRsDUknCx1zJZ1DTzpRzyzcPfMpNMbPVwmn/bTZU5g5s
+GAOdGC9LNDH5zTjriiIDaaX6tDjWueQi9r0gJ7T5tGL1NFSgYp9uXDNTx8Wcb5RF
+09WLeGmqvwtyph/NgHxX8Z1N
+-----END PRIVATE KEY-----""",
+    "client_email": "service-account@whatsbroing.iam.gserviceaccount.com",
+    "client_id": "104345141303948518924",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account%40whatsbroing.iam.gserviceaccount.com",
+}
+
+SPREADSHEET_ID = "1mHpPfmV7AqDAs-UsYwHgl9pggBenCRpEfaPiM_-22Ws"  # Your Google Sheet ID
 
 # --------------------------------------------------------------------------------------
 # Core logic (UI-independent)
@@ -68,6 +119,42 @@ def breakdown_timedelta(td: timedelta) -> Tuple[int, int, int, int]:
     hours, rem = divmod(td.seconds, 3600)
     mins, secs = divmod(rem, 60)
     return days, hours, mins, secs
+
+
+# --------------------------------------------------------------------------------------
+# Google Sheets helper
+# --------------------------------------------------------------------------------------
+
+def append_to_gsheet(worksheet_title: str, row: List[str], header: List[str]) -> bool:
+    """
+    Append a row to a Google Sheet worksheet.
+    Creates the worksheet if it doesn't exist and adds the header row.
+    Returns True on success, False on failure.
+    """
+    if not GSHEETS_AVAILABLE:
+        return False
+    
+    try:
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
+        client = gspread.authorize(creds)
+        sh = client.open_by_key(SPREADSHEET_ID)
+
+        try:
+            ws = sh.worksheet(worksheet_title)
+        except gspread.exceptions.WorksheetNotFound:
+            # Create worksheet with header if it doesn't exist
+            ws = sh.add_worksheet(title=worksheet_title, rows="2000", cols=str(len(header)))
+            ws.append_row(header, value_input_option="USER_ENTERED")
+
+        ws.append_row(row, value_input_option="USER_ENTERED")
+        return True
+    except Exception as e:
+        print(f"GSHEET ERROR ({worksheet_title}): {e}")
+        return False
 
 
 # --------------------------------------------------------------------------------------
@@ -95,8 +182,19 @@ def run_streamlit_app() -> None:
         layout="wide",
         initial_sidebar_state="collapsed"
     )
+    
+    # Force light mode
+    st.markdown("""
+        <script>
+        const root = window.parent.document.querySelector('.stApp');
+        if (root) {
+            root.classList.remove('dark-mode');
+            root.style.colorScheme = 'light';
+        }
+        </script>
+    """, unsafe_allow_html=True)
 
-    # Modern, minimalistic styles
+    # Modern, minimalistic styles - FORCE LIGHT MODE
     st.markdown(
         """
         <style>
@@ -123,11 +221,29 @@ def run_streamlit_app() -> None:
             --radius-lg: 16px;
         }
         
+        /* CRITICAL: Force light mode on ALL elements */
+        * {
+            color-scheme: light !important;
+        }
+        
+        body,
+        html,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stHeader"],
+        [data-testid="stToolbar"],
+        .main,
+        .stApp,
+        section[data-testid="stSidebar"] {
+            background-color: #FEFEFE !important;
+            background: #FEFEFE !important;
+            color: #1A1A1A !important;
+        }
+        
         /* Reset and base styles */
         .main {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            background: #FEFEFE !important;
+            color: #1A1A1A !important;
         }
         
         /* Hide Streamlit elements */
@@ -279,12 +395,46 @@ def run_streamlit_app() -> None:
             line-height: 1.4;
         }
         
-        /* Form styling */
-        .stTextInput input, .stSelectbox select, .stMultiSelect {
+        /* Form styling - FORCE WHITE BACKGROUNDS AND DARK TEXT */
+        .stTextInput input, 
+        .stSelectbox select, 
+        .stMultiSelect,
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > select,
+        .stMultiSelect > div > div,
+        input, 
+        select,
+        textarea {
             border: 1px solid var(--border) !important;
             border-radius: var(--radius) !important;
-            background: var(--bg) !important;
+            background: #FFFFFF !important;
+            background-color: #FFFFFF !important;
+            color: #1A1A1A !important;
             font-family: 'Inter', sans-serif !important;
+        }
+        
+        /* Force text color in form inputs */
+        input::placeholder,
+        select option,
+        .stTextInput input::placeholder {
+            color: #9CA3AF !important;
+            opacity: 1 !important;
+        }
+        
+        /* Dropdown options */
+        option {
+            background-color: #FFFFFF !important;
+            color: #1A1A1A !important;
+        }
+        
+        /* Multi-select styling */
+        .stMultiSelect > div > div {
+            background-color: #FFFFFF !important;
+            color: #1A1A1A !important;
+        }
+        
+        .stMultiSelect span {
+            color: #1A1A1A !important;
         }
         
         .stTextInput input:focus, .stSelectbox select:focus {
@@ -306,6 +456,16 @@ def run_streamlit_app() -> None:
         .stButton button:hover {
             background: var(--primary-light) !important;
             transform: translateY(-1px) !important;
+        }
+        
+        /* Form labels - ensure they're visible */
+        label, 
+        .stTextInput label,
+        .stSelectbox label,
+        .stMultiSelect label,
+        [data-testid="stWidgetLabel"] {
+            color: #1A1A1A !important;
+            font-weight: 500 !important;
         }
         
         /* FAQ styling */
@@ -373,7 +533,7 @@ def run_streamlit_app() -> None:
     ph = st.empty()
 
     # Show countdown for a few seconds, then continue with rest of app
-    countdown_duration = 2 # Show countdown for 5 seconds
+    countdown_duration = 2  # Show countdown for 2 seconds
     started = time.time()
 
     while time.time() - started < countdown_duration:
@@ -432,16 +592,39 @@ def run_streamlit_app() -> None:
 
         if submitted:
             if name.strip() and email.strip():
-                row = [datetime.now(MADRID_TZ).isoformat(timespec="seconds"), name, email, role, "|".join(intent), area]
+                row = [
+                    datetime.now(MADRID_TZ).isoformat(timespec="seconds"),
+                    name.strip(),
+                    email.strip(),
+                    role,
+                    "|".join(intent),
+                    area
+                ]
                 header = ["timestamp", "name", "email", "role", "intent", "area"]
-                path = Path("signups.csv")
-                is_new = not path.exists()
-                with path.open("a", newline="", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    if is_new:
-                        writer.writerow(header)
-                    writer.writerow(row)
-                st.success("✨ Welcome aboard! We'll email you when we launch.")
+                
+                # Try Google Sheets first, fallback to CSV if it fails
+                success = False
+                if GSHEETS_AVAILABLE:
+                    success = append_to_gsheet("Signups", row, header)
+                    if success:
+                        st.success("✨ Welcome aboard! We'll email you when we launch.")
+                    else:
+                        st.error("⚠️ Google Sheets connection failed. Saving locally...")
+                
+                if not success:
+                    # Fallback to CSV if Google Sheets fails or unavailable
+                    try:
+                        path = Path("signups.csv")
+                        is_new = not path.exists()
+                        with path.open("a", newline="", encoding="utf-8") as f:
+                            writer = csv.writer(f)
+                            if is_new:
+                                writer.writerow(header)
+                            writer.writerow(row)
+                        st.success("✨ Welcome aboard! We'll email you when we launch.")
+                        st.info("ℹ️ Data saved locally. Google Sheets integration unavailable.")
+                    except Exception as e:
+                        st.error(f"❌ Failed to save signup: {str(e)}")
             else:
                 st.warning("Please provide both your name and email address.")
 
@@ -512,16 +695,38 @@ def run_streamlit_app() -> None:
             
             if submit_crew:
                 if your_name and your_email and skills:
-                    row = [datetime.now(MADRID_TZ).isoformat(timespec="seconds"), your_name, your_email, "|".join(skills), hours]
+                    row = [
+                        datetime.now(MADRID_TZ).isoformat(timespec="seconds"),
+                        your_name.strip(),
+                        your_email.strip(),
+                        "|".join(skills),
+                        str(hours)
+                    ]
                     header = ["timestamp", "name", "email", "skills", "hours"]
-                    path = Path("crew_interest.csv")
-                    is_new = not path.exists()
-                    with path.open("a", newline="", encoding="utf-8") as f:
-                        w = csv.writer(f)
-                        if is_new:
-                            w.writerow(header)
-                        w.writerow(row)
-                    st.success("🎯 Thanks for your interest! We'll be in touch soon.")
+                    
+                    # Try Google Sheets first, fallback to CSV if it fails
+                    success = False
+                    if GSHEETS_AVAILABLE:
+                        success = append_to_gsheet("Crew Interest", row, header)
+                        if success:
+                            st.success("🎯 Thanks for your interest! We'll be in touch soon.")
+                        else:
+                            st.error("⚠️ Google Sheets connection failed. Saving locally...")
+                    
+                    if not success:
+                        # Fallback to CSV
+                        try:
+                            path = Path("crew_interest.csv")
+                            is_new = not path.exists()
+                            with path.open("a", newline="", encoding="utf-8") as f:
+                                w = csv.writer(f)
+                                if is_new:
+                                    w.writerow(header)
+                                w.writerow(row)
+                            st.success("🎯 Thanks for your interest! We'll be in touch soon.")
+                            st.info("ℹ️ Data saved locally. Google Sheets integration unavailable.")
+                        except Exception as e:
+                            st.error(f"❌ Failed to save crew interest: {str(e)}")
                 else:
                     st.warning("Please provide your name, email, and at least one skill area.")
 
@@ -588,7 +793,7 @@ def run_streamlit_app() -> None:
 def run_cli_fallback() -> None:
     print("Streamlit is not installed in this environment.\n")
     print("👉 To launch the full web app locally:")
-    print("   pip install streamlit\n   streamlit run app.py\n")
+    print("   pip install streamlit gspread google-auth\n   streamlit run app.py\n")
 
     now = datetime.now(MADRID_TZ)
     remaining = compute_remaining(now, LAUNCH_TIME)
@@ -623,7 +828,7 @@ class TestCountdownLogic(unittest.TestCase):
         self.assertEqual((d, h, m, s), (2, 5, 7, 9))
 
 
-# Additional tests (do not modify the originals above)
+# Additional tests
 class TestCountdownLogicAdditional(unittest.TestCase):
     def test_equal_returns_zero(self):
         tz = MADRID_TZ
